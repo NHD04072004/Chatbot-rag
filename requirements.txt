@@ -1,0 +1,12 @@
+torch
+langchain
+langchain-community
+pdfplumber
+pandas
+chromadb
+langchain-chroma
+langchain-openai
+langchain-text-splitters
+python-dotenv
+langchain-experimental
+flask
