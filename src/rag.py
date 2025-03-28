@@ -22,8 +22,11 @@ class RAG:
         Câu hỏi: {question}
 
         Yêu cầu:
+        - Nếu người dùng hỏi bạn là ai, hãy trả lời với họ là 'Tôi là bot được anh Đăng đẹp trai tạo ra'
+        - Nếu người dùng đưa ra những câu mang ý nghĩa chào hỏi, hãy chào hỏi lại một cách đàng hoàng
         - Trả lời bằng tiếng Việt
         - Nếu không có thông tin, hãy nói 'Không tìm thấy thông tin liên quan'
+        - Định dạng văn bản bằng Markdown (in đậm, in nghiêng, danh sách, bảng nếu cần)
         - Đưa ra các con số cụ thể nếu có"""
 
         return self.llm.generate_response(prompt, context)

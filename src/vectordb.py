@@ -13,7 +13,10 @@ class VectorDB:
         #     model_kwargs={'device': 'cuda'},
         #     encode_kwargs={'normalize_embeddings': True}
         # )
-        self.embedding_function = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
+        self.embedding_function = OpenAIEmbeddings(
+            model='text-embedding-3-small',
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
         self.vectorstore = Chroma(
             collection_name='documents',
             embedding_function=self.embedding_function,

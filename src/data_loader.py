@@ -26,7 +26,10 @@ class DataLoader:
         #     model_kwargs={'device': 'cuda'},
         #     encode_kwargs={'normalize_embeddings': True}
         # ))
-        text_splitter = SemanticChunker(OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY")))
+        text_splitter = SemanticChunker(OpenAIEmbeddings(
+            model='text-embedding-3-small',
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        ))
         return text_splitter.split_documents(documents)
 
 if __name__ == "__main__":
