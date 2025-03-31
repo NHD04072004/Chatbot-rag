@@ -1,36 +1,55 @@
 import os
-from langchain_community.document_loaders import PDFPlumberLoader
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.base_models import InputFormat
+from docling.chunking import HybridChunker
+from langchain.schema import Document
 from dotenv import load_dotenv
 load_dotenv()
 
 class DataLoader:
     def __init__(self, folder_path):
         self.folder_path = folder_path
+        pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_ocr = False
+        pipeline_options.do_table_structure = True
+        pipeline_options.table_structure_options.do_cell_matching = True
 
-    @staticmethod
-    def read_pdf(file_path):
-        loader = PDFPlumberLoader(file_path)
-        return loader.load()
+        self.converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_options=pipeline_options,
+                    backend=PyPdfiumDocumentBackend
+                )
+            }
+        )
+        self.chunker = HybridChunker(tokenizer='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2', merge_peers=True)
+
+    def process_file(self, file_path):
+        documents = []
+        full_doc = self.converter.convert(file_path).document
+        chunks = self.chunker.chunk(dl_doc=full_doc)
+        metadata = {'source': file_path}
+        for chunk in chunks:
+            documents.append(Document(
+                page_content=self.chunker.serialize(chunk=chunk),
+                metadata=metadata
+            ))
+        return documents
 
     def load_docs(self):
-        documents = []
-        for file_name in os.listdir(self.folder_path):
-            file_path = os.path.join(self.folder_path, file_name)
-            docs = self.read_pdf(file_path)
-            documents.extend(docs)
+        pdf_files = [
+            os.path.join(self.folder_path, f)
+            for f in os.listdir(self.folder_path)
+            if f.lower().endswith('.pdf')
+        ]
+        results = map(self.process_file, pdf_files)
 
-        # text_splitter = SemanticChunker(HuggingFaceEmbeddings(
-        #     model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        #     model_kwargs={'device': 'cuda'},
-        #     encode_kwargs={'normalize_embeddings': True}
-        # ))
-        text_splitter = SemanticChunker(OpenAIEmbeddings(
-            model='text-embedding-3-small',
-            openai_api_key=os.getenv("OPENAI_API_KEY")
-        ))
-        return text_splitter.split_documents(documents)
+        all_docs = []
+        for docs in results:
+            all_docs.extend(docs)
+        return all_docs
 
 if __name__ == "__main__":
     dir_path = '../data'

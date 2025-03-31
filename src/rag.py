@@ -1,44 +1,47 @@
-from src.data_loader import DataLoader
+import os
+import re
 from src.vectordb import VectorDB
 from src.llm import LLM
 
 class RAG:
-    def __init__(self, data_folder: str, db_path: str):
-        self.data_loader = DataLoader(data_folder)
-        self.vector_db = VectorDB(db_path)
-        self.llm = LLM()
+    def __init__(self, vectordb: VectorDB, llm: LLM, top_k=5):
+        self.vectordb = vectordb
+        self.llm = llm
+        self.top_k = top_k
 
-    def initialize(self):
-        documents = self.data_loader.load_docs()
-        self.vector_db.add_documents(documents)
+    def _preprocess_question(self, question: str) -> str:
+        question = re.sub(r'[^\w\s]', '', question)  # Loại bỏ dấu câu
+        return question.strip().lower()
 
-    def query(self, question: str, top_k: int = 3) -> str:
-        context_chunks = self.vector_db.search(question, top_k)
-        context = "\n\n".join(context_chunks)
+    def generate(self, questions: str):
+        question_processed = self._preprocess_question(questions)
+        if question_processed in ["xin chào", "chào", "hello", "hi"]:
+            return "**Xin chào!** Tôi là trợ lý AI chuyên về phân tích tài chính. Bạn cần hỗ trợ gì hôm nay?"
+        if "bạn là ai" in question_processed or "who are you" in question_processed:
+            return "Tôi là trợ lý AI chuyên về phân tích tài chính, được huấn luyện để trả lời câu hỏi dựa trên tài liệu được cung cấp."
+        context_chunks_docs = self.vectordb.search(question_processed)
+        if not context_chunks_docs:
+            context = "Không tìm thấy thông tin liên quan trong tài liệu."
+        else:
+            context = "\n".join([doc.page_content for doc in context_chunks_docs])
 
-        prompt = f"""Hãy trả lời câu hỏi dựa trên thông tin sau:
-        {context}
-
-        Câu hỏi: {question}
-
-        Yêu cầu:
-        - Nếu người dùng hỏi bạn là ai, hãy trả lời với họ là 'Tôi là bot được anh Đăng đẹp trai tạo ra'
-        - Nếu người dùng đưa ra những câu mang ý nghĩa chào hỏi, hãy chào hỏi lại một cách đàng hoàng
-        - Trả lời bằng tiếng Việt
-        - Nếu không có thông tin, hãy nói 'Không tìm thấy thông tin liên quan'
-        - Định dạng văn bản bằng Markdown (in đậm, in nghiêng, danh sách, bảng nếu cần)
-        - Đưa ra các con số cụ thể nếu có"""
-
-        return self.llm.generate_response(prompt, context)
-
+        return self.llm.generate_response(prompt=question_processed, context=context)
 
 if __name__ == "__main__":
-    rag = RAG(
-        data_folder="../data",
-        db_path="chroma_db"
+    from data_loader import DataLoader
+    from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+    dir_path = '../data'
+    # loader = DataLoader(dir_path)
+    # docs = loader.load_docs()
+    embed_func = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        model_kwargs={'device': 'cuda'},
+        encode_kwargs={'normalize_embeddings': True}
     )
-    rag.initialize()
-
-    question = "cho tôi thông tin về DỰ ÁN KHU LIÊN HỢP SẢN XUẤT GANG THÉP HÒA PHÁT DUNG QUẤT 2"
-    answer = rag.query(question)
-    print("Câu trả lời:", answer)
+    vector_db = VectorDB(db_path="chroma_db", embedding_function=embed_func)
+    # vector_db.add_documents(docs)
+    llm = LLM()
+    rag = RAG(vectordb=vector_db, llm=llm)
+    query = "chủ tịch tập đoàn Hòa Phát là ai?"
+    response = rag.generate(query)
+    print(response)

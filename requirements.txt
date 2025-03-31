@@ -1,7 +1,6 @@
 torch
 langchain
 langchain-community
-pdfplumber
 pandas
 chromadb
 langchain-chroma
@@ -10,3 +9,5 @@ langchain-text-splitters
 python-dotenv
 langchain-experimental
 flask
+docling
+markdown

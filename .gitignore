@@ -1,5 +1,6 @@
 inda
 env
 chroma_db
+src/chroma_db
 .idea
 .env
